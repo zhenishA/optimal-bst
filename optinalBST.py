@@ -1,96 +1,119 @@
-"""
-Optimal Binary Search Tree (OBST) — пример реализации (Python).
+class Node:
+    def __init__(self, key):
+        self.key = key
+        self.left = None
+        self.right = None
 
-Этот скрипт вычисляет DP-таблицы e (ожидаемая стоимость), w (веса) и root (корни)
-по классическому алгоритму CLRS (с учётом q — вероятностей неудачных поисков).
-В конце печатается таблица root в виде, аналогичном примеру в README.
-"""
-
-from typing import List, Tuple
-
-
-def optimal_bst(p: List[float], q: List[float], n: int) -> Tuple[List[List[float]], List[List[int]]]:
+def optimal_bst(keys, freq):
     """
-    Compute expected cost table e and root table for Optimal Binary Search Tree.
-
+    Optimal Binary Search Tree oluşturur
+    
     Args:
-        p: list of probabilities of successful searches (length n), 1..n mapped to p[0]..p[n-1]
-        q: list of probabilities of unsuccessful searches (length n+1), q[0]..q[n]
-        n: number of keys
-
+        keys: Anahtarlar listesi (sıralı)
+        freq: Her anahtarın frekansı
+    
     Returns:
-        e: (n+2) x (n+1) table (we use 1-based indexing for keys)
-        root: (n+2) x (n+1) table of chosen roots (indices 1..n)
+        Minimum maliyet ve kök matrisi
     """
-    # Allocate tables with indices up to n+1 (1-based convenient)
-    e = [[0.0] * (n + 1) for _ in range(n + 2)]
-    w = [[0.0] * (n + 1) for _ in range(n + 2)]
-    root = [[0] * (n + 1) for _ in range(n + 2)]
-
-    # Base cases: e[i][i-1] = q[i-1], w[i][i-1] = q[i-1]
-    for i in range(1, n + 2):
-        e[i][i - 1] = q[i - 1]
-        w[i][i - 1] = q[i - 1]
-
-    # Main DP
-    for length in range(1, n + 1):                # length = number of keys in interval
-        for i in range(1, n - length + 2):        # start index
-            j = i + length - 1                    # end index
-            e[i][j] = float("inf")
-            # compute weight w[i][j]
-            w[i][j] = w[i][j - 1] + p[j - 1] + q[j]
-
-            # try all possible roots r in [i..j]
+    n = len(keys)
+    cost = [[0] * n for _ in range(n)]
+    root = [[0] * n for _ in range(n)]
+    
+    # Tek düğümlü ağaçlar
+    for i in range(n):
+        cost[i][i] = freq[i]
+        root[i][i] = i
+    
+    # Alt ağaç uzunluklarını dene
+    for length in range(2, n + 1):
+        for i in range(n - length + 1):
+            j = i + length - 1
+            cost[i][j] = float('inf')
+            
+            # Frekans toplamı
+            freq_sum = sum(freq[i:j+1])
+            
+            # Her düğümü kök olarak dene
             for r in range(i, j + 1):
-                cost = e[i][r - 1] + e[r + 1][j] + w[i][j]
-                if cost < e[i][j]:
-                    e[i][j] = cost
+                left = cost[i][r-1] if r > i else 0
+                right = cost[r+1][j] if r < j else 0
+                c = left + right + freq_sum
+                
+                if c < cost[i][j]:
+                    cost[i][j] = c
                     root[i][j] = r
+    
+    return cost[0][n-1], root
 
-    return e, root
-
-
-def print_root_table(root: List[List[int]], n: int) -> None:
+def construct_obst(keys, root, i, j):
     """
-    Print root table in rectangular form matching README example
-    (rows and columns from 0..n to show base row/column).
+    Kök matrisinden ağacı oluşturur
+    
+    Args:
+        keys: Anahtarlar listesi
+        root: Kök matrisi
+        i, j: Alt ağaç aralığı
+    
+    Returns:
+        Ağacın kök düğümü
     """
-    print("Таблица корней (root[i][j])")
-    # header
-    header = ["i\\j"] + [str(j) for j in range(0, n + 1)]
-    print("  ".join(f"{h:>3}" for h in header))
-    for i in range(0, n + 1):
-        row_vals = []
-        for j in range(0, n + 1):
-            # We print root[i][j] when indices valid (i and j in 1..n and i<=j),
-            # else print 0 to match the example layout.
-            if 1 <= i <= n and 1 <= j <= n:
-                row_vals.append(str(root[i][j]))
-            else:
-                row_vals.append("0")
-        print(f"{i:>3}  " + "  ".join(f"{v:>2}" for v in row_vals))
+    if i > j:
+        return None
+    
+    r = root[i][j]
+    node = Node(keys[r])
+    node.left = construct_obst(keys, root, i, r - 1)
+    node.right = construct_obst(keys, root, r + 1, j)
+    return node
 
+def inorder(node, depth=0):
+    """Ağacı inorder dolaşır ve yazdırır"""
+    if node:
+        inorder(node.right, depth + 1)
+        print('  ' * depth + f'→ {node.key}')
+        inorder(node.left, depth + 1)
 
+def calculate_cost(node, freq_dict, depth=1):
+    """Ağacın toplam maliyetini hesaplar"""
+    if not node:
+        return 0
+    
+    cost = freq_dict.get(node.key, 0) * depth
+    cost += calculate_cost(node.left, freq_dict, depth + 1)
+    cost += calculate_cost(node.right, freq_dict, depth + 1)
+    return cost
+
+# Test
 if __name__ == "__main__":
-    # Пример из README
-    p = [0.15, 0.10, 0.05]                # p1, p2, p3
-    q = [0.05, 0.10, 0.05, 0.05]          # q0, q1, q2, q3
-    n = len(p)
-
-    e_table, root_table = optimal_bst(p, q, n)
-
-    # Печать ожидаемой таблицы корней в формате, похожем на пример
-    print_root_table(root_table, n)
-
-    # Показать главный корень (root[1][n])
-    print("\nГлавный корень:")
-    print(f"root[1][n] = {root_table[1][n]}  (означает k_{root_table[1][n]} как корень)")
-
-    # (Опционально) распечатать таблицу e — ожидаемых стоимостей (форматированно)
-    print("\nТаблица ожидаемых стоимостей e[i][j] (1-based indices):")
-    for i in range(1, n + 1):
-        row = []
-        for j in range(1, n + 1):
-            val = e_table[i][j] if j >= i else 0.0
-            row.append(f"{val:6.2f}")
-        print(" ".join(row))
+    # Örnek 1
+    print("=== Örnek 1 ===")
+    keys = [10, 20, 30]
+    freq = [1, 1, 10]
+    
+    min_cost, root_matrix = optimal_bst(keys, freq)
+    tree = construct_obst(keys, root_matrix, 0, len(keys) - 1)
+    
+    print(f"Anahtarlar: {keys}")
+    print(f"Frekanslar: {freq}")
+    print(f"Minimum maliyet: {min_cost}")
+    print("\nOptimal Ağaç:")
+    inorder(tree)
+    
+    # Örnek 2
+    print("\n=== Örnek 2 ===")
+    keys = ['A', 'B', 'C', 'D']
+    freq = [5, 10, 3, 2]
+    
+    min_cost, root_matrix = optimal_bst(keys, freq)
+    tree = construct_obst(keys, root_matrix, 0, len(keys) - 1)
+    
+    print(f"Anahtarlar: {keys}")
+    print(f"Frekanslar: {freq}")
+    print(f"Minimum maliyet: {min_cost}")
+    print("\nOptimal Ağaç:")
+    inorder(tree)
+    
+    # Maliyet doğrulama
+    freq_dict = {keys[i]: freq[i] for i in range(len(keys))}
+    actual_cost = calculate_cost(tree, freq_dict)
+    print(f"\nDoğrulama - Hesaplanan maliyet: {actual_cost}")
