@@ -78,7 +78,9 @@ def optimal_bst(keys, freq, n):
     
     return cost[0][n-1]
 ```
-
+Birinci döngü: alt ağaç uzunlukları. 1'den n'ye kadar.
+İkinci döngü: başlangıç pozisyonları.
+Üçüncü döngü: her düğümü kök olarak deniyoruz.
 ### Karmaşıklık
 - **Zaman:** O(n³) - üç iç içe döngü
 - **Alan:** O(n²) - cost tablosu
